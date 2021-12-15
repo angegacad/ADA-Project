@@ -1,0 +1,140 @@
+---
+title: Untitled""
+author: "Angeline Gacad"
+date: "12/1/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(haven)
+
+df1 <- read_xpt("LLCP2020.XPT ")
+
+head(df1) #see basic structure
+```
+
+```{r}
+length(df1) #number of variables
+#exploring the number of variables in the 
+```
+
+```{r}
+names(df1) #variable names
+```
+```{r}
+nrow(df1) #of cases
+```
+```{r}
+DfNew <- data.frame(df1$SEXVAR, df1$`_RACEGR3`, df1$`_AGE65YR`, df1$SLEPTIM1, df1$DIABETE4)
+
+#creating a new dataframe with variables of interest
+#SexVar = Sex assigned at birth
+#_Race = Race 
+#_Age65YR = Ages 18-64 and 65+ (2 categories)
+#_AgeG5YR = Ages 18-80+ in 5 year increments (13 categories)
+#SLEPTIM1 = Reported Hours Slept (1-24 Hrs)
+#DIABETE4 = Ever told had diabetes?
+
+names(DfNew)<-c("Sex", "Race", "Age2", "HrsSlept", "Diabetes")
+
+head(DfNew)
+```
+
+```{r}
+DfNew2<-DfNew[DfNew$HrsSlept!=77 & DfNew$HrsSlept!=99 & DfNew$HrsSlept!="NA"& DfNew$HrsSlept!="",]
+#cleaning dataset to remove answers from Hours slept that include unsure or refused values 
+
+DfNew3<-DfNew2[DfNew2$Diabetes!=2 & DfNew2$Diabetes!=7 & DfNew2$Diabetes!=9 & DfNew2$Diabetes!="",]
+#cleaning dataset to remove "i dont know" "refused" and "yes,pregnancy diabetes" from dataset
+
+DfNew4<-DfNew3[DfNew3$Age2!=2 & DfNew3$Age2!=3,]
+#cleaning dataset to remove 65+ years of age and refused 
+```
+
+```{r}
+table(DfNew4$HrsSlept, DfNew4$Diabetes)
+#Exploring diabetes and hrs slept in table format
+```
+
+```{r}
+DfNew4$Diabetes <- as.factor(DfNew4$Diabetes)
+#changed Diabetes from Numeric to Factor with 3 levels
+
+DfNew4$HrsSlept <-as.factor(DfNew4$HrsSlept)
+#changed Hrs slept into a factor variable in order to more easily create sleep groups (1-6 hrs, 7-9 hrs, 10+ hours)
+```
+
+```{r}
+library(forcats)
+Slept_New <-fct_collapse(DfNew4$HrsSlept, "1_6" = c("1","2","3", "4", "5", "6"), "7_9" = c("7", "8", "9"), "10_24" = c("10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20","21", "22", "23", "24"))
+
+#collapsing hours of sleep into range categories 
+#1-6 hrs = 1_6
+#7-9 hours = 7_9
+#10+ hours = 10_24
+```
+
+```{r}
+table(DfNew4$Race, DfNew4$Diabetes)
+table(Slept_New)
+table(DfNew4$Race)
+table(DfNew4$Age2)
+table(DfNew4$Diabetes)
+#exploring different variables
+```
+
+```{r}
+library(nnet)
+DfNew4$Diabetes <-relevel (DfNew4$Diabetes, ref = "3")
+#setting the reference to 3 or No Diabetes
+```
+
+```{r}
+Slept_New <-relevel (Slept_New, ref = "7_9")
+DiabetesVsSleepModel<-multinom(DfNew4$Diabetes~Slept_New)
+DiabetesVsSleepModel
+summary(DiabetesVsSleepModel)
+#exploratory Multinomial Regression with Diabetes and sleep
+exp(-2.001502) #1 - 0.14
+exp(-3.769661) #4 - 0.023
+
+#no association, neither of the the sleep ratios are under 0.05
+```
+```{r}
+DfNew4$Race<- as.factor(DfNew4$Race)
+DfNew4$Race<-relevel(DfNew4$Race, ref = "1")
+
+DiabetesRaceModel <- multinom(Diabetes~Race, data = DfNew4)
+summary(DiabetesRaceModel)
+#Exploratory of Diabetes and race
+#significant association found with race and presence of diabetes
+
+exp(confint(DiabetesRaceModel))
+
+ 
+```
+
+```{r}
+DiabetesVsSex_RaceModel <- multinom(DfNew4$Diabetes ~ DfNew4$Sex + DfNew4$Race)
+summary(DiabetesVsSex_RaceModel)
+exp(-0.02374801)
+exp(confint(DiabetesVsSex_RaceModel))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
